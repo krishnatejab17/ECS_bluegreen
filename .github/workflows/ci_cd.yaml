@@ -16,7 +16,7 @@ env:
   ECS_CLUSTER: ecs-bluegreen-cluster
   ECS_SERVICE_GREEN: green-service
   ECS_SERVICE_BLUE: blue-service
-  IMAGE_TAG: ${{ github.sha }}-${{ github.run_number }}
+  IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}
 
 jobs:
   deploy:
@@ -32,17 +32,23 @@ jobs:
           role-to-assume: arn:aws:iam::828411126532:role/github-actions-ecr-role
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to ECR
+      - name: Login to Amazon ECR
         run: |
           aws ecr get-login-password --region $AWS_REGION \
           | docker login --username AWS --password-stdin \
           $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
-      - name: Build & Push Image
+      - name: Build Docker Image
         run: |
           docker build -t $ECR_REPO:$IMAGE_TAG .
+
+      - name: Tag Docker Image
+        run: |
           docker tag $ECR_REPO:$IMAGE_TAG \
           $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+
+      - name: Push Docker Image to ECR
+        run: |
           docker push \
           $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
 
@@ -51,7 +57,7 @@ jobs:
         with:
           terraform_version: 1.6.6
 
-      - name: Deploy GREEN service (Terraform)
+      - name: Deploy GREEN Service (Terraform)
         run: |
           terraform init
           terraform apply -auto-approve \
