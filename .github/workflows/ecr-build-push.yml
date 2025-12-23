@@ -6,13 +6,14 @@ on:
       - main
 
 permissions:
-  id-token: write 
+  id-token: write
   contents: read
 
 env:
   AWS_REGION: us-east-1
   ECR_REPO: ecs-bluegreen-app
   AWS_ACCOUNT_ID: 828411126532
+  IMAGE_TAG: ${{ github.sha }}-${{ github.run_number }}
 
 jobs:
   build-and-push:
@@ -36,14 +37,14 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t $ECR_REPO:${{ github.sha }} .
+          docker build -t $ECR_REPO:$IMAGE_TAG .
 
       - name: Tag Docker image
         run: |
-          docker tag $ECR_REPO:${{ github.sha }} \
-          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${{ github.sha }}
+          docker tag $ECR_REPO:$IMAGE_TAG \
+          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
 
-      - name: Push Docker image
+      - name: Push Docker image to ECR
         run: |
           docker push \
-          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${{ github.sha }}
+          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
