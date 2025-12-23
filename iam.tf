@@ -64,3 +64,107 @@ resource "aws_iam_role_policy_attachment" "terraform_backend_attach" {
   role       = aws_iam_role.github_actions_ecr_role.name
   policy_arn = aws_iam_policy.terraform_backend_policy.arn
 }
+
+
+resource "aws_iam_policy" "github_actions_terraform_full_access" {
+  name        = "github-actions-terraform-full-access"
+  description = "Permissions for GitHub Actions to manage ECS Blue-Green infra via Terraform"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+
+      # ---------------- IAM ----------------
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:GetRole",
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy",
+          "iam:GetPolicy",
+          "iam:CreatePolicy",
+          "iam:DeletePolicy",
+          "iam:ListPolicies",
+          "iam:PassRole",
+          "iam:GetOpenIDConnectProvider",
+          "iam:CreateOpenIDConnectProvider",
+          "iam:DeleteOpenIDConnectProvider"
+        ]
+        Resource = "*"
+      },
+
+      # ---------------- ECS ----------------
+      {
+        Effect = "Allow"
+        Action = [
+          "ecs:*"
+        ]
+        Resource = "*"
+      },
+
+      # ---------------- EC2 / VPC ----------------
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:*"
+        ]
+        Resource = "*"
+      },
+
+      # ---------------- ELB / ALB ----------------
+      {
+        Effect = "Allow"
+        Action = [
+          "elasticloadbalancing:*"
+        ]
+        Resource = "*"
+      },
+
+      # ---------------- CloudWatch Logs ----------------
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:*"
+        ]
+        Resource = "*"
+      },
+
+      # ---------------- S3 Backend ----------------
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = "arn:aws:s3:::ecs-bluegreen-tf-state-12345"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = "arn:aws:s3:::ecs-bluegreen-tf-state-12345/*"
+      },
+
+      # ---------------- DynamoDB Lock ----------------
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:*"
+        ]
+        Resource = "arn:aws:dynamodb:us-east-1:828411126532:table/terraform-locks"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_terraform_attach" {
+  role       = aws_iam_role.github_actions_ecr_role.name
+  policy_arn = aws_iam_policy.github_actions_terraform_full_access.arn
+}
+
