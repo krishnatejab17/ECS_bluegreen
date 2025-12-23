@@ -1,0 +1,58 @@
+name: CI-CD Blue Green ECS (OIDC)
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: 828411126532
+  ECR_REPO: ecs-bluegreen-app
+  ECS_CLUSTER: ecs-bluegreen-cluster
+  ECS_SERVICE_GREEN: green-service
+  ECS_SERVICE_BLUE: blue-service
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assume AWS Role (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::828411126532:role/github-actions-ecr-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        run: |
+          aws ecr get-login-password --region $AWS_REGION \
+          | docker login --username AWS --password-stdin \
+          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+      - name: Build & Push Image
+        run: |
+          docker build -t $ECR_REPO:${{ github.sha }} .
+          docker tag $ECR_REPO:${{ github.sha }} \
+          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${{ github.sha }}
+          docker push \
+          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${{ github.sha }}
+
+      - name: Deploy GREEN service
+        run: |
+          terraform init
+          terraform apply -auto-approve \
+            -var="image_tag=${{ github.sha }}"
+
+      - name: Scale UP GREEN
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE_GREEN \
+            --desired-count 2

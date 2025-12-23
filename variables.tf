@@ -7,3 +7,8 @@ variable "project_name" {
   type    = string
   default = "ecs-bluegreen"
 }
+
+variable "image_tag" {
+  type        = string
+  description = "Docker image tag"
+}
